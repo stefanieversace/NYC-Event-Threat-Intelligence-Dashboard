@@ -1,16 +1,19 @@
 import os
 import re
-import math
 import html
+import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple
 
 import feedparser
 import folium
 import pandas as pd
+import plotly.express as px
 import requests
 import streamlit as st
 from folium.plugins import MarkerCluster
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 from streamlit_autorefresh import st_autorefresh
 from streamlit_folium import st_folium
 
@@ -36,13 +39,6 @@ st.markdown(
         padding-top: 1.2rem;
         padding-bottom: 2rem;
     }
-    .metric-card {
-        background: rgba(255,255,255,0.03);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 16px;
-        padding: 16px;
-        margin-bottom: 10px;
-    }
     .brief-box {
         border-radius: 16px;
         padding: 18px;
@@ -60,6 +56,15 @@ st.markdown(
         margin-bottom: 0.75rem;
         font-weight: 700;
         font-size: 1.15rem;
+    }
+    .alert-chip {
+        display: inline-block;
+        padding: 0.25rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        border: 1px solid rgba(255,255,255,0.12);
+        margin-right: 0.4rem;
     }
     </style>
     """,
@@ -81,9 +86,17 @@ RSS_FEEDS = {
     "Reuters World": "https://feeds.reuters.com/Reuters/worldNews",
 }
 
+WATCHLIST_VENUES = {
+    "Madison Square Garden": "madison square garden",
+    "Barclays Center": "barclays center",
+    "Radio City Music Hall": "radio city",
+    "Times Square": "times square",
+}
+
 VENUE_COORDS = {
     "madison square garden": (40.7505, -73.9934),
     "msg": (40.7505, -73.9934),
+    "radio city": (40.7599, -73.9793),
     "radio city music hall": (40.7599, -73.9793),
     "barclays center": (40.6826, -73.9754),
     "yankee stadium": (40.8296, -73.9262),
@@ -190,6 +203,14 @@ show_only_event_related = st.sidebar.toggle("Show only event-related items", val
 show_simulated_items = st.sidebar.toggle("Add simulated NYC incidents", value=True)
 use_newsapi = st.sidebar.toggle("Use NewsAPI (if key exists)", value=bool(NEWS_API_KEY))
 show_raw_feed = st.sidebar.toggle("Show raw feed table", value=True)
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("## 🏟️ Venue Watchlist")
+selected_venues = st.sidebar.multiselect(
+    "Select venues to monitor",
+    list(WATCHLIST_VENUES.keys()),
+    default=list(WATCHLIST_VENUES.keys())
+)
 
 st.sidebar.markdown("---")
 st.sidebar.caption("Set NEWS_API_KEY as an environment variable to enable NewsAPI enrichment.")
@@ -360,6 +381,66 @@ def marker_colour(risk: str) -> str:
     }.get(risk, "blue")
 
 
+def generate_alert_id(title: str, source: str, published_at: datetime, location: str) -> str:
+    base = f"{title}|{source}|{published_at.isoformat()}|{location}"
+    digest = uuid.uuid5(uuid.NAMESPACE_DNS, base).hex[:10].upper()
+    return f"ALRT-{digest}"
+
+
+def recommended_actions(risk: str, impact: str, protected_assets: str) -> List[str]:
+    actions = []
+
+    if risk == "HIGH":
+        actions.extend([
+            "Escalate to security command immediately.",
+            "Review CCTV coverage and live perimeter conditions.",
+            "Coordinate with venue security leadership and law enforcement.",
+            "Prepare protective response and crowd-control contingencies."
+        ])
+    elif risk == "MEDIUM":
+        actions.extend([
+            "Increase monitoring frequency for escalation indicators.",
+            "Notify venue or event security stakeholders.",
+            "Assess likely disruption to access control and crowd flow."
+        ])
+    else:
+        actions.extend([
+            "Continue monitoring and retain on watchlist.",
+            "Log item for situational awareness and trend tracking."
+        ])
+
+    if "transport" in protected_assets:
+        actions.append("Review ingress and egress dependencies tied to transit routes.")
+    if "people" in protected_assets:
+        actions.append("Validate crowd-safety posture and staffing readiness.")
+    if "venue" in protected_assets:
+        actions.append("Review perimeter, screening, and access-control measures.")
+    if "production" in protected_assets:
+        actions.append("Assess impact to filming, broadcast, or event continuity.")
+
+    # Deduplicate while preserving order
+    unique_actions = []
+    for a in actions:
+        if a not in unique_actions:
+            unique_actions.append(a)
+
+    return unique_actions
+
+
+def generate_pdf_brief(brief_text: str, filename: str = "/mnt/data/NYC_Executive_Threat_Brief.pdf") -> str:
+    doc = SimpleDocTemplate(filename)
+    styles = getSampleStyleSheet()
+    story = []
+
+    for line in brief_text.split("\n"):
+        safe_line = html.escape(line)
+        story.append(Paragraph(safe_line, styles["Normal"]))
+        story.append(Spacer(1, 8))
+
+    doc.build(story)
+    return filename
+
+
 # =========================================================
 # DATA INGESTION
 # =========================================================
@@ -512,9 +593,11 @@ def build_dataframe(items: List[Dict]) -> pd.DataFrame:
         impact = infer_operational_impact(combined_text)
         asset_type = infer_asset_type(combined_text)
         priority = compute_priority(risk, risk_score_value, age_hours, event_related)
+        alert_id = generate_alert_id(title, item.get("source", "Unknown"), published_at, inferred_location)
 
         enriched.append(
             {
+                "alert_id": alert_id,
                 "published_at": published_at,
                 "age_hours": age_hours,
                 "source": item.get("source", "Unknown"),
@@ -569,8 +652,18 @@ def filter_dataframe(df: pd.DataFrame) -> pd.DataFrame:
             | filtered["summary"].str.lower().str.contains(pattern, na=False)
             | filtered["location"].str.lower().str.contains(pattern, na=False)
             | filtered["source"].str.lower().str.contains(pattern, na=False)
+            | filtered["alert_id"].str.lower().str.contains(pattern, na=False)
         )
         filtered = filtered[mask]
+
+    if selected_venues:
+        venue_terms = [WATCHLIST_VENUES[v] for v in selected_venues]
+        venue_pattern = "|".join(re.escape(term) for term in venue_terms)
+        filtered = filtered[
+            filtered["title"].str.lower().str.contains(venue_pattern, na=False)
+            | filtered["summary"].str.lower().str.contains(venue_pattern, na=False)
+            | filtered["location"].str.lower().str.contains(venue_pattern, na=False)
+        ]
 
     return filtered.reset_index(drop=True)
 
@@ -620,7 +713,7 @@ def generate_briefing(df: pd.DataFrame) -> str:
     lines.append("Top items for analyst review:")
     for _, row in top_items.iterrows():
         lines.append(
-            f"- [{row['priority']}] {row['title']} | {row['location']} | "
+            f"- {row['alert_id']} | [{row['priority']}] {row['title']} | {row['location']} | "
             f"Risk={row['risk']} ({row['risk_score']}) | Age={row['age_hours']}h"
         )
 
@@ -661,10 +754,11 @@ def make_map(df: pd.DataFrame) -> folium.Map:
 
     for _, row in df.iterrows():
         popup_html = f"""
-        <div style="width:320px;">
+        <div style="width:340px;">
             <b>{html.escape(str(row['title']))}</b><br><br>
-            <b>Risk:</b> {row['risk']} ({row['risk_score']})<br>
-            <b>Priority:</b> {row['priority']} ({row['priority_score']})<br>
+            <b>Alert ID:</b> {html.escape(str(row['alert_id']))}<br>
+            <b>Risk:</b> {html.escape(str(row['risk']))} ({row['risk_score']})<br>
+            <b>Priority:</b> {html.escape(str(row['priority']))} ({row['priority_score']})<br>
             <b>Location:</b> {html.escape(str(row['location']))}<br>
             <b>Source:</b> {html.escape(str(row['source']))}<br>
             <b>Age:</b> {row['age_hours']}h<br>
@@ -677,7 +771,7 @@ def make_map(df: pd.DataFrame) -> folium.Map:
         folium.Marker(
             location=[row["lat"], row["lon"]],
             popup=folium.Popup(popup_html, max_width=350),
-            tooltip=f"{row['risk']} | {row['location']} | {row['title'][:60]}",
+            tooltip=f"{row['risk']} | {row['location']} | {row['alert_id']}",
             icon=folium.Icon(color=marker_colour(row["risk"]), icon="info-sign"),
         ).add_to(cluster)
 
@@ -700,13 +794,15 @@ with st.spinner("Collecting open-source items..."):
     df_all = build_dataframe(all_items)
     df = filter_dataframe(df_all)
 
+briefing = generate_briefing(df)
+
 # =========================================================
 # HEADER
 # =========================================================
 st.title("🛡️ NYC Event Threat Intelligence Dashboard")
 st.markdown(
     """
-Designed to support security teams at large-scale venues, live productions, and public events through open-source monitoring, risk prioritisation, and operationally focused briefing output.
+Designed to support security teams at large-scale venues, live productions, and public events through open-source monitoring, risk prioritisation, geospatial awareness, and operational briefing output.
 """
 )
 
@@ -714,7 +810,7 @@ col_a, col_b = st.columns([1.3, 1])
 
 with col_a:
     st.markdown(
-        f"""
+        """
 <div class="small-muted">
 Monitoring focus: concerts, sports games, public gatherings, venue security, transport disruption, and event-adjacent incidents across New York City.
 </div>
@@ -760,6 +856,35 @@ k4.metric("Event Related", event_items)
 k5.metric("Avg Priority", avg_priority)
 
 # =========================================================
+# SEVERITY TREND CHART
+# =========================================================
+st.markdown("## 📈 Threat Severity Trend")
+
+if not df.empty:
+    trend_df = df.copy()
+    trend_df["hour"] = trend_df["published_at"].dt.floor("h")
+    grouped = trend_df.groupby(["hour", "risk"]).size().reset_index(name="count")
+
+    fig = px.line(
+        grouped,
+        x="hour",
+        y="count",
+        color="risk",
+        markers=True,
+        title="Threat Activity Over Time",
+    )
+    fig.update_layout(
+        xaxis_title="Time",
+        yaxis_title="Incident Count",
+        legend_title="Risk Level",
+        template="plotly_white",
+        height=380,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("No data for trend analysis.")
+
+# =========================================================
 # MAIN LAYOUT
 # =========================================================
 left_col, right_col = st.columns([1.35, 0.95])
@@ -771,8 +896,19 @@ with left_col:
 
 with right_col:
     st.markdown('<div class="section-title">🧠 Analyst Briefing Panel</div>', unsafe_allow_html=True)
-    briefing = generate_briefing(df)
     st.markdown(f'<div class="brief-box">{html.escape(briefing)}</div>', unsafe_allow_html=True)
+
+    st.markdown("### 📄 Executive Export")
+    if st.button("Export Executive Brief (PDF)"):
+        pdf_path = generate_pdf_brief(briefing)
+        st.success("Executive PDF generated.")
+        with open(pdf_path, "rb") as f:
+            st.download_button(
+                label="Download Executive Brief",
+                data=f,
+                file_name="NYC_Executive_Threat_Brief.pdf",
+                mime="application/pdf",
+            )
 
 # =========================================================
 # ANALYST TABLES
@@ -788,6 +924,7 @@ with tab1:
     else:
         display_df = df[
             [
+                "alert_id",
                 "published_at",
                 "priority",
                 "priority_score",
@@ -806,7 +943,8 @@ with tab1:
 
         st.markdown("### Top 10 Items")
         for _, row in df.head(10).iterrows():
-            with st.expander(f"[{row['priority']}] {row['title']}"):
+            with st.expander(f"{row['alert_id']} | [{row['priority']}] {row['title']}"):
+                st.write(f"**Alert ID:** {row['alert_id']}")
                 st.write(f"**Risk:** {row['risk']} ({row['risk_score']})")
                 st.write(f"**Priority:** {row['priority']} ({row['priority_score']})")
                 st.write(f"**Location:** {row['location']}")
@@ -816,6 +954,11 @@ with tab1:
                 st.write(f"**Source:** {row['source']} | **Feed:** {row['feed_type']}")
                 st.write(f"**Published:** {row['published_at'].strftime('%Y-%m-%d %H:%M UTC')} | **Age:** {row['age_hours']}h")
                 st.write(f"**Summary:** {row['summary'] or 'No summary available.'}")
+
+                st.write("**Recommended Actions:**")
+                for action in recommended_actions(row["risk"], row["impact"], row["protected_assets"]):
+                    st.write(f"- {action}")
+
                 if row["url"]:
                     st.markdown(f"[Open source item]({row['url']})")
 
@@ -873,6 +1016,7 @@ with tab4:
             st.dataframe(
                 raw_df[
                     [
+                        "alert_id",
                         "published_at",
                         "source",
                         "feed_type",
@@ -893,11 +1037,11 @@ with tab4:
             )
 
 # =========================================================
-# FOOTER / PROJECT POSITIONING
+# FOOTER
 # =========================================================
 st.markdown("---")
 st.markdown(
     """
-**Project framing:** This dashboard simulates how security intelligence teams can monitor open-source reporting relevant to concerts, sports events, public gatherings, and live productions in New York City. It combines OSINT collection, weighted risk scoring, geospatial context, and analyst-style briefing outputs to support protective security decision-making.
+**Project framing:** This dashboard simulates how security intelligence teams monitor open-source reporting relevant to concerts, sports events, public gatherings, and live productions in New York City. It combines OSINT collection, weighted risk scoring, venue watchlisting, geospatial context, Sentinel-style alerting, and analyst briefing outputs to support protective security decision-making.
 """
 )
