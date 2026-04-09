@@ -1,3 +1,9 @@
-title,location,risk
-"Protest near Times Square","NYC","MEDIUM"
-"Crowd surge at MSG","NYC","HIGH"
+alert_id,title,location,borough,risk,risk_score,priority,priority_score,event_type,protected_assets,source,published_at,summary
+ALRT-001,"Protest near Times Square impacting pedestrian flow","Times Square","Manhattan","MEDIUM",38,"ELEVATED",65,"Public Gathering","people, venue","Simulated Feed","2026-04-09T10:30:00Z","Large demonstration expected to disrupt crowd movement and traffic near major event zones."
+ALRT-002,"Crowd surge reported outside Madison Square Garden before concert","Madison Square Garden","Manhattan","HIGH",72,"IMMEDIATE",92,"Concert","people, venue","Simulated Feed","2026-04-09T12:10:00Z","Heavy congestion and crowd pressure observed at venue entrances ahead of sold-out show."
+ALRT-003,"Subway delays on multiple lines affecting Barclays Center access","Barclays Center","Brooklyn","MEDIUM",34,"ELEVATED",60,"Sports/Event","transport, people","Simulated Feed","2026-04-09T09:15:00Z","Transit disruptions likely to delay attendee arrival and increase congestion at entry points."
+ALRT-004,"Suspicious package investigation near Radio City Music Hall","Radio City Music Hall","Manhattan","HIGH",68,"IMMEDIATE",88,"Theatre/Event","venue, people","Simulated Feed","2026-04-09T13:05:00Z","Police presence and restricted access perimeter established during investigation."
+ALRT-005,"Traffic congestion near Central Park during festival","Central Park","Manhattan","LOW",15,"MONITOR",28,"Festival","people, transport","Simulated Feed","2026-04-09T11:00:00Z","High vehicle and pedestrian volume causing minor delays but no immediate safety threat."
+ALRT-006,"Minor altercation reported at Yankee Stadium entrance","Yankee Stadium","Bronx","MEDIUM",30,"ELEVATED",55,"Sports Event","people, venue","Simulated Feed","2026-04-09T14:20:00Z","Incident contained quickly but increased security presence at entry gates."
+ALRT-007,"Power outage affecting lighting near Brooklyn Mirage venue","Brooklyn Mirage","Brooklyn","MEDIUM",28,"ROUTINE+",48,"Concert","venue, production","Simulated Feed","2026-04-09T08:40:00Z","Temporary outage impacting event setup and technical systems."
+ALRT-008,"Increased police activity near Times Square following reported threat","Times Square","Manhattan","HIGH",65,"IMMEDIATE",90,"Public Space","people, venue","Simulated Feed","2026-04-09T15:00:00Z","Authorities responding to potential threat with increased patrol and restricted access."
