@@ -17,6 +17,56 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 from streamlit_autorefresh import st_autorefresh
 from streamlit_folium import st_folium
 
+st.markdown("""
+<style>
+
+/* Background */
+[data-testid="stAppViewContainer"] {
+    background-color: #0E1117;
+    color: #FAFAFA;
+}
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background-color: #111827;
+}
+
+/* Titles */
+h1, h2, h3 {
+    color: #F9FAFB;
+    font-weight: 600;
+}
+
+/* Metric Cards */
+.metric-card {
+    background: linear-gradient(145deg, #111827, #1F2937);
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid #374151;
+}
+
+/* Tables */
+[data-testid="stDataFrame"] {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+/* Buttons */
+.stButton>button {
+    background-color: #2563EB;
+    color: white;
+    border-radius: 8px;
+    border: none;
+}
+
+/* Alert colors */
+.high { color: #EF4444; }
+.medium { color: #F59E0B; }
+.low { color: #10B981; }
+
+</style>
+""", unsafe_allow_html=True)
+
 # =========================================================
 # PAGE CONFIG
 # =========================================================
@@ -744,6 +794,8 @@ def generate_briefing(df: pd.DataFrame) -> str:
 
     return "\n".join(lines)
 
+st.markdown("### 📊 Incident Feed")
+
 
 def make_map(df: pd.DataFrame) -> folium.Map:
     m = folium.Map(location=NYC_DEFAULT_CENTER, zoom_start=11, tiles="CartoDB positron")
@@ -841,19 +893,19 @@ else:
 # =========================================================
 # KPI ROW
 # =========================================================
-k1, k2, k3, k4, k5 = st.columns(5)
+col1, col2, col3, col4 = st.columns(4)
 
-total_items = len(df)
-high_items = int((df["risk"] == "HIGH").sum()) if not df.empty else 0
-med_items = int((df["risk"] == "MEDIUM").sum()) if not df.empty else 0
-event_items = int(df["event_related"].sum()) if not df.empty else 0
-avg_priority = round(float(df["priority_score"].mean()), 1) if not df.empty else 0.0
+with col1:
+    st.markdown('<div class="metric-card">🚨 High Risk<br><h2>{}</h2></div>'.format(high_items), unsafe_allow_html=True)
 
-k1.metric("Items in View", total_items)
-k2.metric("High Risk", high_items)
-k3.metric("Medium Risk", med_items)
-k4.metric("Event Related", event_items)
-k5.metric("Avg Priority", avg_priority)
+with col2:
+    st.markdown('<div class="metric-card">⚠️ Medium Risk<br><h2>{}</h2></div>'.format(med_items), unsafe_allow_html=True)
+
+with col3:
+    st.markdown('<div class="metric-card">📍 Total Incidents<br><h2>{}</h2></div>'.format(total_items), unsafe_allow_html=True)
+
+with col4:
+    st.markdown('<div class="metric-card">🎯 Avg Priority<br><h2>{}</h2></div>'.format(avg_priority), unsafe_allow_html=True)
 
 # =========================================================
 # SEVERITY TREND CHART
@@ -889,10 +941,10 @@ else:
 # =========================================================
 left_col, right_col = st.columns([1.35, 0.95])
 
-with left_col:
-    st.markdown('<div class="section-title">🗺️ Incident Map</div>', unsafe_allow_html=True)
-    threat_map = make_map(df)
-    st_folium(threat_map, width=None, height=520)
+st.markdown("### 🌍 Live Threat Map")
+
+threat_map = make_map(df)
+st_folium(threat_map, height=500)
 
 with right_col:
     st.markdown('<div class="section-title">🧠 Analyst Briefing Panel</div>', unsafe_allow_html=True)
