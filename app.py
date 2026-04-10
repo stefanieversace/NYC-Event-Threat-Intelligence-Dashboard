@@ -697,8 +697,6 @@ def deduplicate_items(items: List[Dict]) -> List[Dict]:
 
     return deduped
 
-st.markdown('<div class="hero-wrap">', unsafe_allow_html=True)
-
 hero_left, hero_right = st.columns([1.9, 1])
 
 with hero_left:
@@ -967,6 +965,7 @@ high_alerts = 0 if df.empty else int((df["risk"] == "HIGH").sum())
 medium_alerts = 0 if df.empty else int((df["risk"] == "MEDIUM").sum())
 avg_priority = 0 if df.empty else round(float(df["priority_score"].mean()), 1)
 
+st.markdown('<div class="hero-wrap">', unsafe_allow_html=True)
 
 briefing = generate_briefing(df)
 
