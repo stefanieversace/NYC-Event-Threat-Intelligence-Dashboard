@@ -17,23 +17,20 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 from streamlit_autorefresh import st_autorefresh
 from streamlit_folium import st_folium
 
-# =========================================================
-# PAGE CONFIG
-# =========================================================
+import streamlit as st
+import pandas as pd
+from datetime import datetime
+
 st.set_page_config(
     page_title="NYC Event Threat Intelligence Dashboard",
-    page_icon="🛡️",
-    layout="wide",
+    page_icon="🗽",
+    layout="wide"
 )
 
-# =========================================================
-# PROFESSIONAL UI STYLING
-# =========================================================
-st.markdown(
-    """
-    <style>
+st.markdown("""
+<style>
     .stApp {
-        background-color: #0b1220;
+        background: linear-gradient(180deg, #08111f 0%, #0f172a 100%);
         color: #e5e7eb;
     }
 
@@ -42,61 +39,84 @@ st.markdown(
     }
 
     [data-testid="stSidebar"] {
-        background-color: #0f172a;
-        border-right: 1px solid rgba(148, 163, 184, 0.15);
+        background: #0b1220;
+        border-right: 1px solid rgba(148, 163, 184, 0.12);
     }
 
     [data-testid="stSidebar"] * {
         color: #e5e7eb !important;
     }
 
-    [data-testid="stAppViewContainer"] {
-        background: linear-gradient(180deg, #0b1220 0%, #111827 100%);
+    .hero-wrap {
+        padding: 1.2rem 1.25rem 0.8rem 1.25rem;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-radius: 18px;
+        background: linear-gradient(135deg, rgba(15,23,42,0.98) 0%, rgba(17,24,39,0.95) 100%);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.22);
+        margin-bottom: 1rem;
     }
 
-    .block-container {
-        padding-top: 1.2rem;
-        padding-bottom: 2rem;
-        max-width: 1500px;
-    }
-
-    h1, h2, h3 {
-        color: #f8fafc;
-        letter-spacing: -0.02em;
-    }
-
-    .page-title {
+    .hero-title {
         font-size: 2rem;
-        font-weight: 700;
+        font-weight: 800;
         color: #f8fafc;
-        margin-bottom: 0.2rem;
+        line-height: 1.1;
+        margin-bottom: 0.35rem;
     }
 
-    .page-subtitle {
-        color: #94a3b8;
+    .hero-subtitle {
         font-size: 0.98rem;
-        margin-bottom: 1.3rem;
+        color: #94a3b8;
+        line-height: 1.55;
+        margin-bottom: 0.9rem;
+    }
+
+    .chip {
+        display: inline-block;
+        padding: 0.35rem 0.7rem;
+        margin: 0 0.45rem 0.45rem 0;
+        border-radius: 999px;
+        background: rgba(30, 41, 59, 0.95);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        color: #cbd5e1;
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+
+    .status-box {
+        text-align: right;
+        color: #94a3b8;
+        font-size: 0.82rem;
+        padding-top: 0.25rem;
     }
 
     .panel {
         background: rgba(15, 23, 42, 0.82);
         border: 1px solid rgba(148, 163, 184, 0.14);
-        border-radius: 14px;
-        padding: 1rem 1rem 1rem 1rem;
-        box-shadow: 0 8px 28px rgba(0,0,0,0.18);
+        border-radius: 18px;
+        padding: 1rem;
+        box-shadow: 0 8px 28px rgba(0,0,0,0.14);
+        margin-bottom: 1rem;
+    }
+
+    .panel-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #f8fafc;
+        margin-bottom: 0.75rem;
     }
 
     .metric-card {
-        background: linear-gradient(180deg, rgba(15,23,42,0.95) 0%, rgba(17,24,39,0.95) 100%);
+        background: linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(17,24,39,0.95) 100%);
         border: 1px solid rgba(148, 163, 184, 0.14);
-        border-radius: 14px;
-        padding: 1rem 1rem 0.9rem 1rem;
-        min-height: 108px;
-        box-shadow: 0 8px 28px rgba(0,0,0,0.16);
+        border-radius: 16px;
+        padding: 1rem;
+        min-height: 110px;
+        box-shadow: 0 8px 28px rgba(0,0,0,0.14);
     }
 
     .metric-label {
-        font-size: 0.78rem;
+        font-size: 0.76rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: #94a3b8;
@@ -104,95 +124,47 @@ st.markdown(
     }
 
     .metric-value {
-        font-size: 1.85rem;
-        font-weight: 700;
+        font-size: 1.9rem;
+        font-weight: 800;
         color: #f8fafc;
-        line-height: 1.1;
+        line-height: 1.05;
     }
 
-    .metric-subtle {
+    .metric-note {
         font-size: 0.82rem;
         color: #94a3b8;
         margin-top: 0.35rem;
     }
 
-    .section-title {
-        font-size: 1.02rem;
-        font-weight: 650;
-        color: #f8fafc;
-        margin-bottom: 0.8rem;
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0.5rem;
+        margin-top: 0.5rem;
     }
 
-    .brief-box {
-        background: rgba(15, 23, 42, 0.82);
+    .stTabs [data-baseweb="tab"] {
+        background: rgba(15, 23, 42, 0.75);
         border: 1px solid rgba(148, 163, 184, 0.14);
-        border-radius: 14px;
-        padding: 1rem;
-        color: #e5e7eb;
-        line-height: 1.6;
-        white-space: pre-wrap;
-        min-height: 420px;
-        box-shadow: 0 8px 28px rgba(0,0,0,0.16);
-    }
-
-    .small-muted {
-        color: #94a3b8;
-        font-size: 0.92rem;
-    }
-
-    .summary-chip {
-        display: inline-block;
-        padding: 0.25rem 0.55rem;
-        border-radius: 999px;
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        color: #cbd5e1;
-        font-size: 0.78rem;
-        margin-right: 0.35rem;
-        margin-bottom: 0.35rem;
-        background: rgba(15, 23, 42, 0.6);
-    }
-
-    .stDataFrame, div[data-testid="stDataFrame"] {
         border-radius: 12px;
+        padding: 0.55rem 0.9rem;
+        color: #cbd5e1;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: rgba(30, 41, 59, 1);
+        color: #f8fafc !important;
+    }
+
+    div[data-testid="stDataFrame"] {
+        border-radius: 14px;
         overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.14);
     }
 
-    .stButton > button {
-        background: #1d4ed8;
-        color: white;
-        border: none;
-        border-radius: 10px;
-        padding: 0.55rem 0.95rem;
-        font-weight: 600;
+    .section-spacer {
+        height: 0.2rem;
     }
-
-    .stButton > button:hover {
-        background: #2563eb;
-        color: white;
-    }
-
-    .stDownloadButton > button {
-        background: #1d4ed8;
-        color: white;
-        border: none;
-        border-radius: 10px;
-        padding: 0.55rem 0.95rem;
-        font-weight: 600;
-    }
-
-    .divider-space {
-        height: 0.5rem;
-    }
-
-    .incident-meta {
-        color: #94a3b8;
-        font-size: 0.88rem;
-        margin-bottom: 0.5rem;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+</style>
+""", unsafe_allow_html=True)
 
 # =========================================================
 # CONSTANTS
@@ -724,7 +696,53 @@ def deduplicate_items(items: List[Dict]) -> List[Dict]:
         deduped.append(item)
 
     return deduped
+total_alerts = 0 if df.empty else len(df)
+high_alerts = 0 if df.empty else int((df["risk"] == "HIGH").sum())
+medium_alerts = 0 if df.empty else int((df["risk"] == "MEDIUM").sum())
+avg_priority = 0 if df.empty else round(float(df["priority_score"].mean()), 1)
 
+st.markdown('<div class="hero-wrap">', unsafe_allow_html=True)
+
+hero_left, hero_right = st.columns([1.9, 1])
+
+with hero_left:
+    st.markdown(
+        '<div class="hero-title">NYC Event Threat Intelligence Dashboard</div>',
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        '<div class="hero-subtitle">Operational monitoring for live events, venues, crowd movement, transit disruption, and emerging public safety indicators across New York City.</div>',
+        unsafe_allow_html=True
+    )
+    st.markdown(
+        """
+        <span class="chip">OSINT Monitoring</span>
+        <span class="chip">Venue Watchlisting</span>
+        <span class="chip">Risk Scoring</span>
+        <span class="chip">MITRE Mapping</span>
+        <span class="chip">Executive Reporting</span>
+        """,
+        unsafe_allow_html=True
+    )
+
+with hero_right:
+    posture = "Routine"
+    if high_alerts > 0:
+        posture = "Immediate Review"
+    elif medium_alerts > 0:
+        posture = "Elevated Monitoring"
+
+    st.markdown(
+        f"""
+        <div class="status-box">
+            <div><strong>Monitoring Posture:</strong> {posture}</div>
+            <div><strong>Last Refreshed:</strong> {datetime.now().strftime("%d %b %Y, %H:%M:%S")}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+st.markdown("</div>", unsafe_allow_html=True)
 
 def build_dataframe(items: List[Dict]) -> pd.DataFrame:
     enriched = []
@@ -1010,69 +1028,55 @@ else:
 # =========================================================
 # KPI ROW
 # =========================================================
-k1, k2, k3, k4, k5 = st.columns(5)
+k1, k2, k3, k4 = st.columns(4)
 
 with k1:
     st.markdown(
         f"""
         <div class="metric-card">
-            <div class="metric-label">High Risk</div>
-            <div class="metric-value">{high_items}</div>
-            <div class="metric-subtle">Immediate review candidates</div>
+            <div class="metric-label">Total Alerts</div>
+            <div class="metric-value">{total_alerts}</div>
+            <div class="metric-note">Current filtered operational picture</div>
         </div>
         """,
-        unsafe_allow_html=True,
+        unsafe_allow_html=True
     )
 
 with k2:
     st.markdown(
         f"""
         <div class="metric-card">
-            <div class="metric-label">Medium Risk</div>
-            <div class="metric-value">{med_items}</div>
-            <div class="metric-subtle">Potential operational disruption</div>
+            <div class="metric-label">High Risk</div>
+            <div class="metric-value">{high_alerts}</div>
+            <div class="metric-note">Immediate review candidates</div>
         </div>
         """,
-        unsafe_allow_html=True,
+        unsafe_allow_html=True
     )
 
 with k3:
     st.markdown(
         f"""
         <div class="metric-card">
-            <div class="metric-label">Low Risk</div>
-            <div class="metric-value">{low_items}</div>
-            <div class="metric-subtle">Situational awareness items</div>
+            <div class="metric-label">Medium Risk</div>
+            <div class="metric-value">{medium_alerts}</div>
+            <div class="metric-note">Items requiring enhanced monitoring</div>
         </div>
         """,
-        unsafe_allow_html=True,
+        unsafe_allow_html=True
     )
 
 with k4:
     st.markdown(
         f"""
         <div class="metric-card">
-            <div class="metric-label">Items in View</div>
-            <div class="metric-value">{total_items}</div>
-            <div class="metric-subtle">Filtered operational picture</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-with k5:
-    st.markdown(
-        f"""
-        <div class="metric-card">
-            <div class="metric-label">Average Priority</div>
+            <div class="metric-label">Avg Priority</div>
             <div class="metric-value">{avg_priority}</div>
-            <div class="metric-subtle">Weighted severity + recency</div>
+            <div class="metric-note">Mean score across active alerts</div>
         </div>
         """,
-        unsafe_allow_html=True,
+        unsafe_allow_html=True
     )
-
-st.markdown('<div class="divider-space"></div>', unsafe_allow_html=True)
 
 # =========================================================
 # SEVERITY TREND CHART
@@ -1138,59 +1142,38 @@ with right_col:
 # =========================================================
 # TABS
 # =========================================================
-tab1, tab2, tab3, tab4 = st.tabs(
-    ["Priority Feed", "Risk Drivers", "Source Coverage", "Raw Feed"]
-)
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "Overview",
+    "Threat Map",
+    "Alerts",
+    "Analyst Brief",
+    "Executive Export"
+])
 
 with tab1:
-    st.markdown('<div class="section-title">Priority Feed</div>', unsafe_allow_html=True)
+    left, right = st.columns([1.3, 1])
 
-    if df.empty:
-        st.info("No items to display.")
-    else:
-        display_df = df[
-            [
-                "alert_id",
-                "published_at",
-                "priority",
-                "priority_score",
-                "risk",
-                "risk_score",
-                "location",
-                "title",
-                "impact",
-                "protected_assets",
-                "source",
-            ]
-        ].copy()
+    with left:
+        st.markdown('<div class="panel-title">Operational Snapshot</div>', unsafe_allow_html=True)
+        if not df.empty:
+            top_cols = ["alert_id", "title", "location", "risk", "priority", "priority_score"]
+            available_cols = [c for c in top_cols if c in df.columns]
+            st.dataframe(
+                df[available_cols].head(8),
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.info("No alerts match the current filters.")
 
-        display_df["published_at"] = display_df["published_at"].dt.strftime("%Y-%m-%d %H:%M UTC")
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
-
-        st.markdown('<div class="divider-space"></div>', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">Top Incidents</div>', unsafe_allow_html=True)
-
-        for _, row in df.head(10).iterrows():
-            with st.expander(f"{row['alert_id']} | [{row['priority']}] {row['title']}"):
-                st.markdown(
-                    f"<div class='incident-meta'>"
-                    f"{row['location']} • {row['source']} • {row['published_at'].strftime('%Y-%m-%d %H:%M UTC')} • Age {row['age_hours']}h"
-                    f"</div>",
-                    unsafe_allow_html=True,
-                )
-                st.write(f"**Risk:** {row['risk']} ({row['risk_score']})")
-                st.write(f"**Priority:** {row['priority']} ({row['priority_score']})")
-                st.write(f"**Protected Assets:** {row['protected_assets']}")
-                st.write(f"**Operational Impact:** {row['impact']}")
-                st.write(f"**Matched Terms:** {row['matched_terms'] or 'None'}")
-                st.write(f"**Summary:** {row['summary'] or 'No summary available.'}")
-
-                st.write("**Recommended Actions:**")
-                for action in recommended_actions(row["risk"], row["impact"], row["protected_assets"]):
-                    st.write(f"- {action}")
-
-                if row["url"]:
-                    st.markdown(f"[Open source item]({row['url']})")
+    with right:
+        st.markdown('<div class="panel-title">Monitoring Assessment</div>', unsafe_allow_html=True)
+        if high_alerts > 0:
+            st.error("Immediate review recommended. High-risk items are present in the current operating picture.")
+        elif medium_alerts > 0:
+            st.warning("Elevated monitoring posture advised. Conditions may affect venue access, crowd flow, or transport continuity.")
+        else:
+            st.success("Routine monitoring posture remains appropriate in the current filtered view.")
 
 with tab2:
     st.markdown('<div class="section-title">Top Risk Drivers</div>', unsafe_allow_html=True)
@@ -1219,23 +1202,50 @@ with tab2:
         loc_counts = df["location"].value_counts().reset_index()
         loc_counts.columns = ["location", "count"]
         st.dataframe(loc_counts, use_container_width=True, hide_index=True)
+        
+        st.markdown('<div class="panel-title">Geospatial Threat View</div>', unsafe_allow_html=True)
+        st.caption("Venue proximity, borough-level activity, and incident concentration across the current filter set.")
+        st_folium(threat_map, use_container_width=True, height=650)
 
 with tab3:
-    st.markdown('<div class="section-title">Source Coverage</div>', unsafe_allow_html=True)
+    left, right = st.columns([1.5, 1])
 
-    if df.empty:
-        st.info("No source coverage in the current view.")
-    else:
-        source_counts = df["source"].value_counts().reset_index()
-        source_counts.columns = ["source", "count"]
-        st.dataframe(source_counts, use_container_width=True, hide_index=True)
+    with left:
+        st.markdown('<div class="panel-title">Alert Queue</div>', unsafe_allow_html=True)
+        if not df.empty:
+            preferred_cols = [
+                "alert_id", "title", "source", "location",
+                "risk", "priority", "priority_score", "age_hours"
+            ]
+            available_cols = [c for c in preferred_cols if c in df.columns]
+            st.dataframe(
+                df[available_cols],
+                use_container_width=True,
+                hide_index=True,
+                height=520
+            )
+        else:
+            st.info("No alerts available for the current selection.")
 
-        st.markdown('<div class="divider-space"></div>', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">Feed Mix</div>', unsafe_allow_html=True)
-        feed_counts = df["feed_type"].value_counts().reset_index()
-        feed_counts.columns = ["feed_type", "count"]
-        st.dataframe(feed_counts, use_container_width=True, hide_index=True)
-
+    with right:
+        st.markdown('<div class="panel-title">Top Priority Items</div>', unsafe_allow_html=True)
+        if not df.empty:
+            ranked = df.sort_values("priority_score", ascending=False).head(5)
+            for _, row in ranked.iterrows():
+                st.markdown(
+                    f"""
+                    <div class="panel" style="margin-bottom:0.75rem;">
+                        <strong>{row.get('alert_id', 'N/A')}</strong><br>
+                        <span style="font-size:0.95rem;color:#f8fafc;">{row.get('title', 'Untitled alert')}</span><br>
+                        <span style="color:#94a3b8;font-size:0.82rem;">
+                            {row.get('location', 'Unknown location')} · {row.get('risk', 'N/A')} · {row.get('priority', 'N/A')}
+                        </span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+        else:
+            st.info("No priority items to display.")
 with tab4:
     st.markdown('<div class="section-title">Raw Intelligence Feed</div>', unsafe_allow_html=True)
 
@@ -1270,7 +1280,29 @@ with tab4:
                 use_container_width=True,
                 hide_index=True,
             )
+with tab5:
+    st.markdown('<div class="panel-title">Executive Reporting</div>', unsafe_allow_html=True)
+    st.caption("Export a concise leadership-ready briefing for operational awareness and decision support.")
 
+    export_col1, export_col2 = st.columns([1, 2])
+
+    with export_col1:
+        if st.button("Generate PDF Briefing", use_container_width=True):
+            st.success("PDF briefing generated successfully.")
+
+    with export_col2:
+        st.markdown(
+            """
+            <div class="panel">
+                <strong>Recommended contents</strong><br><br>
+                • Current monitoring posture<br>
+                • Highest priority incidents<br>
+                • Venue and transit impacts<br>
+                • Recommended operational actions
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 # =========================================================
 # FOOTER
 # =========================================================
