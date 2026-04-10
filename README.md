@@ -45,8 +45,16 @@ It is designed to replicate how security teams monitor risks to public events, i
 
 ## Architecture
 
-```text
-Data Sources → Ingestion Layer → Processing Engine → Risk Scoring → Alerting → Dashboard UI
+```
+Raw Logs / Event Data
+        ↓
+C++ Detection Engine (Brute force / anomaly detection)
+        ↓
+Structured Alerts (JSON)
+        ↓
+Python Dashboard (Streamlit)
+        ↓
+Analyst Insights & Visualisation
 ```
 
 ## Use Cases
