@@ -10,37 +10,43 @@ This project combines:
 
 It is designed to replicate how security teams monitor risks to public events, infrastructure, and large venues.
 ---
+## Detection & Intelligence Capabilities
 
-## Key Capabilities
+### High-Performance Detection Engine (C++)
+- Processes raw log data for suspicious activity  
+- Detects brute force patterns (MITRE ATT&CK T1110)  
+- Generates structured JSON alerts for downstream analysis  
+- Simulates performance-critical SOC detection pipelines  
 
 ### OSINT Collection
-- Aggregates data from RSS feeds and News APIs  
-- Processes real-time information related to NYC events and incidents  
+- Aggregates intelligence from RSS feeds and open-source news APIs  
+- Continuously ingests data related to NYC incidents, disruptions, and risks  
+- Normalises and structures unstructured external data  
 
 ### Risk Scoring Engine
 - Keyword-based threat detection model  
 - Weighted scoring system (HIGH / MEDIUM / LOW)  
-- Context-aware boosts (venues, NYC relevance)  
+- Context-aware boosts (NYC locations, major venues, event relevance)  
 
 ### Alerting & Prioritisation
-- Sentinel-style alert ID generation  
-- Priority scoring based on severity + recency  
+- SOC-style alert ID generation  
+- Priority scoring based on severity and recency  
 - Classification: `IMMEDIATE`, `ELEVATED`, `ROUTINE+`, `MONITOR`  
 
 ### Geospatial Intelligence
-- Maps incidents to NYC venues and boroughs  
-- Highlights proximity to high-risk locations  
-- Interactive map visualisation  
+- Maps incidents to NYC boroughs and key venues  
+- Highlights proximity to high-risk or high-density locations  
+- Interactive geospatial visualisation for situational awareness  
 
 ### Analyst Briefing Engine
-- Generates structured intelligence reports  
-- Summarises key incidents and trends  
-- Provides operational recommendations  
+- Generates structured intelligence summaries  
+- Highlights key incidents, patterns, and emerging risks  
+- Provides actionable insights for operational decision-making  
 
 ### Executive Reporting
-- One-click PDF export of intelligence briefings  
-- Designed for leadership-level consumption  
-
+- One-click export of intelligence briefings  
+- Designed for leadership-level situational awareness  
+- Translates technical findings into strategic insights  
 ---
 
 ## Architecture
