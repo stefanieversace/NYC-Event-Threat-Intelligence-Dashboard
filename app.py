@@ -696,10 +696,6 @@ def deduplicate_items(items: List[Dict]) -> List[Dict]:
         deduped.append(item)
 
     return deduped
-total_alerts = 0 if df.empty else len(df)
-high_alerts = 0 if df.empty else int((df["risk"] == "HIGH").sum())
-medium_alerts = 0 if df.empty else int((df["risk"] == "MEDIUM").sum())
-avg_priority = 0 if df.empty else round(float(df["priority_score"].mean()), 1)
 
 st.markdown('<div class="hero-wrap">', unsafe_allow_html=True)
 
@@ -965,6 +961,12 @@ with st.spinner("Collecting open-source items..."):
     all_items = deduplicate_items(all_items)
     df_all = build_dataframe(all_items)
     df = filter_dataframe(df_all)
+
+total_alerts = 0 if df.empty else len(df)
+high_alerts = 0 if df.empty else int((df["risk"] == "HIGH").sum())
+medium_alerts = 0 if df.empty else int((df["risk"] == "MEDIUM").sum())
+avg_priority = 0 if df.empty else round(float(df["priority_score"].mean()), 1)
+
 
 briefing = generate_briefing(df)
 
