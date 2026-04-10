@@ -1,20 +1,14 @@
-# 🛡️ NYC Event Threat Intelligence Dashboard
+# 🗽 NYC Event Threat Intelligence Dashboard
 
-> A real-time OSINT-driven security intelligence platform designed to support threat monitoring for live events, venues, and public spaces in New York City.
+A real-time threat intelligence and detection system designed to simulate Security Operations Center (SOC) workflows for monitoring risks across New York City.
 
----
+This project combines:
 
-## Overview
+- High-performance C++ detection engine
+- Threat intelligence enrichment (MITRE ATT&CK mapping)
+- Python-based analyst dashboard (Streamlit)
 
-This project simulates how modern security and intelligence teams monitor, assess, and respond to threats impacting:
-
-- Concerts and live events  
-- Major venues (MSG, Barclays Center, Radio City)  
-- Public gatherings and protests  
-- Transport and infrastructure  
-
-The system integrates open-source intelligence (OSINT), risk scoring, geospatial analysis, and analyst-style briefings to deliver actionable insights for security operations.
-
+It is designed to replicate how security teams monitor risks to public events, infrastructure, and large venues.
 ---
 
 ## Key Capabilities
